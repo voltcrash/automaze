@@ -17,6 +17,20 @@ Then open http://localhost:5173.
 
 Other commands: `npm run build`, `npm run preview`, `npm run check`.
 
+## Deploy to Vercel
+
+Import `voltcrash/automaze` on Vercel and press **Deploy** — every setting on the import
+screen can stay at its default:
+
+- **Application Preset:** SvelteKit
+- **Root Directory:** `./`
+- **Build / Output / Install Command:** leave the overrides off
+- **Environment Variables:** none — the project needs no keys, backend or database
+
+The project uses `@sveltejs/adapter-vercel`, and `src/routes/+layout.ts` sets
+`prerender = true` / `ssr = false`, so the build emits a static `index.html` plus the client
+bundle. Pushes to `main` redeploy automatically.
+
 ## What's on screen
 
 | Section | What it shows |
