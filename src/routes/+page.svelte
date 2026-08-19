@@ -1,42 +1,48 @@
 <script lang="ts">
 	import { SvelteSet } from 'svelte/reactivity';
-	import { aStar, key } from '$lib/algorithms/astar';
+	import { key } from '$lib/algorithms/astar';
+	import { planMission } from '$lib/algorithms/mission';
 	import {
-		DEFAULT_GOAL,
-		DEFAULT_START,
-		GRID_HEIGHT,
-		GRID_WIDTH,
-		createWalls,
-		randomWalls,
+		FORKLIFT_HOME,
+		WAREHOUSE_HEIGHT,
+		WAREHOUSE_WIDTH,
+		createEmptyWarehouse,
+		createPackages,
+		createWarehouse,
 		samePoint
-	} from '$lib/grid';
+	} from '$lib/warehouse';
 	import Controls from '$lib/components/Controls.svelte';
 	import DecisionLog from '$lib/components/DecisionLog.svelte';
-	import Grid from '$lib/components/Grid.svelte';
 	import Legend from '$lib/components/Legend.svelte';
 	import Metrics from '$lib/components/Metrics.svelte';
 	import PeasPanel from '$lib/components/PeasPanel.svelte';
-	import type { LogEntry, LogKind, Metrics as MetricsType, Point } from '$lib/types';
+	import Warehouse from '$lib/components/Warehouse.svelte';
+	import type { LogEntry, LogKind, MissionTotals, Package, Point } from '$lib/types';
 
-	const start = DEFAULT_START;
-	const goal = DEFAULT_GOAL;
+	// Held separately so the initial view state below reads a plain object rather
+	// than the reactive proxy (which would only capture its first value).
+	const initialWarehouse = createWarehouse();
 
-	let walls = $state(randomWalls(start, goal, 0.22));
+	let warehouse = $state(initialWarehouse);
 
-	// Visual state, all driven by real events emitted by the A* run.
+	// Live view state, all driven by the recorded A* traces.
 	let visited = new SvelteSet<string>();
 	let frontier = new SvelteSet<string>();
-	let path = new SvelteSet<string>();
-	let agent = $state<Point | null>(null);
+	let route = new SvelteSet<string>();
+	let forklift = $state<Point>(initialWarehouse.forklift);
+	let carrying = $state<string | null>(null);
+	/** Packages not yet picked up — removed from the floor as they are collected. */
+	let onFloor = $state<Package[]>([...initialWarehouse.packages]);
 
 	let logs = $state<LogEntry[]>([]);
-	let metrics = $state<MetricsType | null>(null);
-	let found = $state(false);
+	let totals = $state<MissionTotals | null>(null);
+	let unreachable = $state<string[]>([]);
 	let running = $state(false);
-	let speed = $state(30);
+	let speed = $state(24);
+	let currentTask = $state('Idle — forklift parked at the dock');
 
 	let logId = 0;
-	/** Incremented on every reset/start so stale animation loops bail out. */
+	/** Incremented on reset/start so stale animation loops bail out. */
 	let runToken = 0;
 
 	function log(kind: LogKind, message: string) {
@@ -50,155 +56,205 @@
 		running = false;
 		visited.clear();
 		frontier.clear();
-		path.clear();
-		agent = null;
+		route.clear();
+		forklift = warehouse.forklift;
+		carrying = null;
+		onFloor = [...warehouse.packages];
 		logs = [];
 		logId = 0;
-		metrics = null;
-		found = false;
+		totals = null;
+		unreachable = [];
+		currentTask = 'Idle — forklift parked at the dock';
 	}
 
-	function toggleWall(p: Point) {
+	function toggleShelf(p: Point) {
 		if (running) return;
-		if (samePoint(p, start) || samePoint(p, goal)) return;
-		walls[p.y][p.x] = !walls[p.y][p.x];
+		if (samePoint(p, FORKLIFT_HOME)) return;
+		if (warehouse.bays.some((b) => samePoint(b.at, p))) return;
+		if (warehouse.packages.some((pkg) => samePoint(pkg.at, p))) return;
+		warehouse.shelves[p.y][p.x] = !warehouse.shelves[p.y][p.x];
 	}
 
-	async function startSearch() {
+	async function startShift() {
 		clearRun();
 		const token = runToken;
 		running = true;
 
-		log('info', `Agent online. Start (${start.x},${start.y}) → Goal (${goal.x},${goal.y}).`);
-		log('info', 'Strategy: A* search, f(n) = g(n) + h(n), h = Manhattan distance.');
+		log('info', `Shift started. Manifest: ${warehouse.packages.length} packages.`);
+		for (const pkg of warehouse.packages) {
+			log('info', `  ${pkg.id} at (${pkg.at.x},${pkg.at.y}) → ${pkg.bayId}`);
+		}
+		log('info', 'Planner: A* per leg, f(n) = g(n) + h(n), h = Manhattan distance.');
 
-		// Run the real algorithm first; the animation below replays its trace.
-		const result = aStar({ walls: walls.map((row) => [...row]), start, goal });
+		// Plan the entire shift up front, then replay the recorded searches.
+		const mission = planMission($state.snapshot(warehouse));
+		unreachable = mission.unreachable;
 
-		for (const event of result.events) {
-			if (token !== runToken) return; // a reset happened mid-animation
+		for (const leg of mission.legs) {
+			if (token !== runToken) return;
 
-			switch (event.type) {
-				case 'expand': {
-					const { point, g, h, f } = event.node;
-					frontier.delete(key(point));
-					visited.add(key(point));
-					agent = point;
-					log('expand', `Exploring (${point.x},${point.y}) — g=${g}, h=${h}, f=${g}+${h}=${f}`);
-					await sleep(speed);
-					break;
+			visited.clear();
+			frontier.clear();
+			route.clear();
+
+			currentTask =
+				leg.kind === 'pickup'
+					? `Driving to ${leg.packageId} at (${leg.to.x},${leg.to.y})`
+					: `Carrying ${leg.packageId} to ${leg.bayId}`;
+
+			log(
+				'info',
+				leg.kind === 'pickup'
+					? `▸ Leg: fetch ${leg.packageId} — (${leg.from.x},${leg.from.y}) → (${leg.to.x},${leg.to.y})`
+					: `▸ Leg: deliver ${leg.packageId} to ${leg.bayId} — (${leg.from.x},${leg.from.y}) → (${leg.to.x},${leg.to.y})`
+			);
+
+			// Replay the search for this leg.
+			for (const event of leg.result.events) {
+				if (token !== runToken) return;
+
+				switch (event.type) {
+					case 'expand': {
+						const { point, g, h, f } = event.node;
+						frontier.delete(key(point));
+						visited.add(key(point));
+						log('expand', `Exploring (${point.x},${point.y}) — g=${g}, h=${h}, f=${g}+${h}=${f}`);
+						await sleep(speed);
+						break;
+					}
+					case 'open': {
+						const { point, g, h, f } = event.node;
+						if (!visited.has(key(point))) frontier.add(key(point));
+						log('open', `  ↳ open list ← (${point.x},${point.y}) g=${g} h=${h} f=${f}`);
+						break;
+					}
+					case 'reject': {
+						const reason = event.reason === 'obstacle' ? 'shelf rack' : event.reason;
+						log('reject', `  ✕ (${event.point.x},${event.point.y}) rejected — ${reason}`);
+						break;
+					}
+					case 'goal': {
+						log('success', `Optimal route found — cost ${leg.result.metrics.pathCost}.`);
+						break;
+					}
+					case 'failure': {
+						log('error', 'Open list exhausted — no route.');
+						break;
+					}
 				}
-				case 'open': {
-					const { point, g, h, f } = event.node;
-					if (!visited.has(key(point))) frontier.add(key(point));
-					log('open', `  ↳ open list ← (${point.x},${point.y}) g=${g} h=${h} f=${f}`);
-					break;
-				}
-				case 'reject': {
-					log('reject', `  ✕ (${event.point.x},${event.point.y}) rejected — ${event.reason}`);
-					break;
-				}
-				case 'goal': {
-					log('success', `Goal reached at (${event.node.point.x},${event.node.point.y})!`);
-					break;
-				}
-				case 'failure': {
-					log('error', 'Open list exhausted — no path to the goal.');
-					break;
-				}
+			}
+
+			// Drive the forklift along the optimal route, one cell at a time.
+			for (const step of leg.result.path) {
+				if (token !== runToken) return;
+				route.add(key(step));
+				forklift = step;
+				await sleep(Math.max(18, speed * 1.4));
+			}
+
+			if (leg.kind === 'pickup') {
+				carrying = leg.packageId;
+				onFloor = onFloor.filter((pkg) => pkg.id !== leg.packageId);
+				log('success', `Picked up ${leg.packageId}.`);
+			} else {
+				carrying = null;
+				log('success', `Delivered ${leg.packageId} to ${leg.bayId}.`);
 			}
 		}
 
-		metrics = result.metrics;
-		found = result.found;
+		totals = mission.totals;
 
-		if (!result.found) {
-			running = false;
-			return;
+		for (const id of mission.unreachable) {
+			log('error', `${id} is walled in by shelves — skipped.`);
 		}
 
-		// Walk the agent along the reconstructed path, one cell at a time.
-		log('info', `Reconstructing path (${result.path.length} cells) and walking it…`);
-		for (const step of result.path) {
-			if (token !== runToken) return;
-			path.add(key(step));
-			agent = step;
-			await sleep(Math.max(20, speed * 1.5));
-		}
-
-		log('success', `Final path cost: ${result.metrics.pathCost} (1 per move).`);
+		log(
+			'success',
+			`Shift complete: ${mission.totals.deliveries}/${warehouse.packages.length} delivered, total path cost ${mission.totals.pathCost}.`
+		);
 		log(
 			'info',
-			`Expanded ${result.metrics.nodesExpanded} nodes in ${result.metrics.executionMs.toFixed(2)} ms.`
+			`Expanded ${mission.totals.nodesExpanded} nodes across ${mission.totals.legs} A* searches in ${mission.totals.executionMs.toFixed(2)} ms.`
 		);
+
+		currentTask = `Shift complete — ${mission.totals.deliveries} delivered`;
 		running = false;
 	}
 
+	function newWarehouse() {
+		warehouse = createWarehouse();
+		clearRun();
+	}
+
+	function clearRacks() {
+		warehouse = createEmptyWarehouse();
+		clearRun();
+	}
+
 	function reset() {
+		// Same floorplan and racks, a fresh manifest of packages.
+		warehouse.packages = createPackages(warehouse.shelves, warehouse.bays);
 		clearRun();
-	}
-
-	function generateObstacles() {
-		clearRun();
-		walls = randomWalls(start, goal);
-	}
-
-	function clearObstacles() {
-		clearRun();
-		walls = createWalls();
 	}
 </script>
 
 <svelte:head>
-	<title>A* Grid Navigation Agent</title>
-	<meta name="description" content="An autonomous A* pathfinding agent running entirely in the browser." />
+	<title>Warehouse Logistics Agent — A* Search</title>
+	<meta
+		name="description"
+		content="An autonomous forklift agent that plans package deliveries with A* search, entirely in the browser."
+	/>
 </svelte:head>
 
 <main>
 	<header>
 		<div>
-			<h1>A* Grid Navigation Agent</h1>
+			<h1>Warehouse Logistics Agent</h1>
 			<p>
-				An autonomous agent that searches a {GRID_WIDTH}×{GRID_HEIGHT} grid for the shortest
-				obstacle-free path — algorithm, reasoning and metrics all in the browser.
+				An autonomous forklift collects packages and delivers them to loading bays across a {WAREHOUSE_WIDTH}×{WAREHOUSE_HEIGHT}
+				warehouse of static shelf racks, planning every leg with A* search and Manhattan distance.
 			</p>
 		</div>
-		<span class="status" class:live={running}>{running ? 'SEARCHING' : 'IDLE'}</span>
+		<span class="status" class:live={running}>{running ? 'ON SHIFT' : 'IDLE'}</span>
 	</header>
 
 	<section class="panel controls-panel">
 		<Controls
 			{running}
 			{speed}
-			onStart={startSearch}
+			onStart={startShift}
 			onReset={reset}
-			onRandom={generateObstacles}
-			onClear={clearObstacles}
+			onRandom={newWarehouse}
+			onClear={clearRacks}
 			onSpeed={(ms) => (speed = ms)}
 		/>
-		<p class="hint">Click or drag on the grid to add and remove obstacles before starting.</p>
+		<p class="hint">Click or drag on the floor to add and remove shelf racks between shifts.</p>
 	</section>
 
 	<div class="layout">
-		<section class="panel grid-panel">
-			<h2>Grid Environment</h2>
-			<Grid
-				{walls}
-				{start}
-				{goal}
+		<section class="panel floor-panel">
+			<div class="floor-head">
+				<h2>Warehouse Floor</h2>
+				<span class="task" class:live={running}>{currentTask}</span>
+			</div>
+			<Warehouse
+				shelves={warehouse.shelves}
+				bays={warehouse.bays}
+				packages={onFloor}
 				{visited}
 				{frontier}
-				{path}
-				{agent}
+				path={route}
+				{forklift}
+				{carrying}
 				editable={!running}
-				onToggle={toggleWall}
+				onToggleShelf={toggleShelf}
 			/>
 			<Legend />
 		</section>
 
 		<div class="side">
 			<DecisionLog entries={logs} />
-			<Metrics {metrics} {found} />
+			<Metrics metrics={totals} {unreachable} packageCount={warehouse.packages.length} />
 			<PeasPanel />
 		</div>
 	</div>
@@ -231,7 +287,7 @@
 		margin: 0.35rem 0 0;
 		color: var(--muted);
 		font-size: 0.86rem;
-		max-width: 62ch;
+		max-width: 70ch;
 	}
 
 	.status {
@@ -269,10 +325,30 @@
 		align-items: start;
 	}
 
-	.grid-panel {
+	.floor-panel {
 		display: flex;
 		flex-direction: column;
 		gap: 0.85rem;
+	}
+
+	.floor-head {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.floor-head h2 {
+		margin: 0;
+	}
+
+	.task {
+		font-size: 0.78rem;
+		color: var(--muted);
+	}
+
+	.task.live {
+		color: var(--package);
 	}
 
 	.side {
