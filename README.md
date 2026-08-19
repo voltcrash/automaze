@@ -1,10 +1,11 @@
-# A* Grid Navigation Agent
+# Warehouse Logistics Agent
 
-An autonomous pathfinding agent that runs **entirely in the browser** — no backend, no
-database, no API keys. Built with **SvelteKit + TypeScript**.
+**Track 1 — Informed Search (Unit 2).** An autonomous forklift agent that picks up packages
+and delivers them to loading bays in a grid warehouse with static shelf obstacles, planning
+every move with **A\* search** and a **Manhattan distance** heuristic.
 
-The agent searches a 25×16 grid for the shortest obstacle-free path from a start cell to a
-goal cell using **A\*** search, while streaming its reasoning to a live decision log.
+Runs **entirely in the browser** — no backend, no database, no API keys. Built with
+**SvelteKit + TypeScript**.
 
 ## Run it
 
@@ -17,10 +18,91 @@ Then open http://localhost:5173.
 
 Other commands: `npm run build`, `npm run preview`, `npm run check`.
 
+## The scenario
+
+A 26×16 warehouse. Shelf racks are two cells deep, separated by single-cell picking aisles,
+with clear cross-aisles at the top, middle and bottom. Three loading bays (**BAY-A**,
+**BAY-B**, **BAY-C**) sit on the dock along the left wall, and the forklift parks at the
+bottom of the dock aisle between shifts.
+
+Each shift the agent is handed a manifest of packages, each addressed to a bay. It then:
+
+1. **Selects a task** — the unclaimed package with the smallest Manhattan distance from
+   where it currently stands.
+2. **Drives to it** — one A\* search over the shelf layout (leg 1).
+3. **Carries it to the bay** — a second, independent A\* search (leg 2).
+4. Repeats until the manifest is empty.
+
+A package that is walled in by racks is reported as unreachable and skipped; the rest of the
+shift still completes.
+
+## The algorithm
+
+`src/lib/algorithms/astar.ts` is pure TypeScript with no UI dependencies, so it can be read
+and explained on its own.
+
+- `f(n) = g(n) + h(n)`
+- `g(n)` — cost from the leg's start to the current node (1 per move)
+- `h(n) = |x₁ - x₂| + |y₁ - y₂|` — Manhattan distance, admissible on a 4-connected grid, so
+  each leg is an optimal route
+- Actuators: drive up, down, left, right — each move costs 1
+- Ties on `f` are broken by the lower `h`, which pushes the search towards the target
+
+`src/lib/algorithms/mission.ts` layers the logistics on top: task selection, the two legs per
+package, and the running totals across the shift.
+
+Each search runs to completion synchronously and records every decision as a `SearchEvent`.
+The UI then replays those traces frame by frame — **the animation is the real execution**,
+not a scripted approximation.
+
+## What's on screen
+
+| Section | What it shows |
+| --- | --- |
+| Warehouse Floor | Shelf racks, loading bays, packages, the forklift (ringed amber while laden), the frontier, expanded cells and the optimal route for the current leg |
+| Live Decision Log | The manifest, each leg as it starts, every node expanded with `g(n)`/`h(n)`/`f(n)`, every node pushed to the open list, every rejected neighbour with its reason, and each pickup and delivery |
+| Shift Performance | Total path cost, deliveries, nodes expanded, nodes visited, execution time, cells driven, A\* legs |
+| PEAS Framework | Performance measure, environment, actuators, sensors |
+
+Controls: **Start Shift**, **Reset** (new manifest, same racks), **New Warehouse**,
+**Clear Racks**, plus a speed slider. Click or drag on the floor to add or remove shelf racks
+between shifts.
+
+## Structure
+
+```text
+src/
+  lib/
+    algorithms/
+      astar.ts            # A* search, UI-free
+      mission.ts          # task selection + multi-leg delivery planning
+    warehouse.ts          # rack layout, bays, package generation
+    types.ts              # shared domain and search types
+    components/
+      Warehouse.svelte    # floorplan rendering + rack painting
+      Controls.svelte     # buttons and speed slider
+      DecisionLog.svelte  # live reasoning feed
+      Metrics.svelte      # shift performance tiles
+      PeasPanel.svelte    # expandable PEAS section
+      Legend.svelte       # colour key
+  routes/+page.svelte     # orchestrates the shift and the animation
+```
+
+## PEAS
+
+- **Performance measure** — all packages delivered to the correct bay, lowest total path
+  cost, fewest nodes expanded per leg
+- **Environment** — a fully observable, static, discrete grid warehouse: floor aisles, static
+  shelf racks, packages and loading bays
+- **Actuators** — drive up, down, left or right (each move costs 1), pick up a package, drop
+  it at a bay
+- **Sensors** — own position and load state, the four neighbouring cells, the shelf map,
+  package positions and bay locations
+
 ## Deploy to Vercel
 
-Import `voltcrash/automaze` on Vercel and press **Deploy** — every setting on the import
-screen can stay at its default:
+Import the repository on Vercel and press **Deploy** — every setting on the import screen can
+stay at its default:
 
 - **Application Preset:** SvelteKit
 - **Root Directory:** `./`
@@ -30,56 +112,3 @@ screen can stay at its default:
 The project uses `@sveltejs/adapter-vercel`, and `src/routes/+layout.ts` sets
 `prerender = true` / `ssr = false`, so the build emits a static `index.html` plus the client
 bundle. Pushes to `main` redeploy automatically.
-
-## What's on screen
-
-| Section | What it shows |
-| --- | --- |
-| Grid Environment | Start, goal, obstacles, frontier (open list), visited cells, final path and the moving agent |
-| Live Decision Log | Every node expanded with `g(n)`, `h(n)`, `f(n)`, every node pushed to the open list, and every rejected neighbour with its reason |
-| Performance Metrics | Path cost, nodes expanded, nodes visited, execution time, final path length |
-| PEAS Framework | Performance measure, environment, actuators, sensors |
-
-Controls: **Start A\***, **Reset**, **Random Obstacles**, **Clear Obstacles**, plus a speed
-slider. Click or drag on the grid to draw or erase obstacles before starting.
-
-## The algorithm
-
-`src/lib/algorithms/astar.ts` is pure TypeScript with no UI dependencies, so it can be read
-and explained on its own.
-
-- `f(n) = g(n) + h(n)`
-- `g(n)` — cost from the start to the current node (1 per move)
-- `h(n) = |x_goal - x_current| + |y_goal - y_current|` — Manhattan distance, admissible on a
-  4-connected grid, so A\* returns an optimal path
-- Moves: up, down, left, right, each costing 1
-- Ties on `f` are broken by the lower `h`, which pushes the search towards the goal
-
-The search runs to completion synchronously and records every decision as a `SearchEvent`.
-The UI then replays that trace frame by frame — **the animation is the real execution**,
-not a scripted approximation.
-
-## Structure
-
-```text
-src/
-  lib/
-    algorithms/astar.ts   # A* search, UI-free
-    grid.ts               # grid size, defaults, random obstacle generation
-    types.ts              # shared types
-    components/
-      Grid.svelte         # grid rendering + obstacle painting
-      Controls.svelte     # buttons and speed slider
-      DecisionLog.svelte  # live reasoning feed
-      Metrics.svelte      # performance tiles
-      PeasPanel.svelte    # expandable PEAS section
-      Legend.svelte       # colour key
-  routes/+page.svelte     # orchestrates the run and the animation
-```
-
-## PEAS
-
-- **Performance measure** — shortest valid path, low path cost, few explored nodes
-- **Environment** — a fully observable, static, discrete 2D grid of free cells and obstacles
-- **Actuators** — move up, down, left, right
-- **Sensors** — current position, neighbouring cells, obstacle map, goal location
