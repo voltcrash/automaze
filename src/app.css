@@ -6,13 +6,13 @@
 	--text: #e6edf7;
 	--muted: #8b9ab5;
 	--accent: #4f8cff;
-	--start: #22c55e;
-	--goal: #f43f5e;
-	--wall: #2b3550;
+	--shelf: #2b3550;
+	--bay: #38bdf8;
+	--package: #f5b13d;
+	--forklift: #22c55e;
 	--visited: #1e3a5f;
-	--open: #2f5d8a;
-	--path: #f5b13d;
-	--agent: #a78bfa;
+	--frontier: #2f5d8a;
+	--route: #a78bfa;
 
 	color-scheme: dark;
 	font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;

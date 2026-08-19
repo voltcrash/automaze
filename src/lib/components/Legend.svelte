@@ -1,12 +1,12 @@
 <script lang="ts">
 	const items = [
-		{ label: 'Start', color: 'var(--start)' },
-		{ label: 'Goal', color: 'var(--goal)' },
-		{ label: 'Obstacle', color: 'var(--wall)' },
-		{ label: 'Frontier (open list)', color: 'var(--open)' },
-		{ label: 'Visited', color: 'var(--visited)' },
-		{ label: 'Final path', color: 'var(--path)' },
-		{ label: 'Agent', color: 'var(--agent)' }
+		{ label: 'Forklift', color: 'var(--forklift)' },
+		{ label: 'Package', color: 'var(--package)' },
+		{ label: 'Loading bay', color: 'var(--bay)' },
+		{ label: 'Shelf rack', color: 'var(--shelf)' },
+		{ label: 'Frontier (open list)', color: 'var(--frontier)' },
+		{ label: 'Expanded', color: 'var(--visited)' },
+		{ label: 'Optimal route', color: 'var(--route)' }
 	];
 </script>
 
