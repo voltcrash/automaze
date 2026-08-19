@@ -1,22 +1,28 @@
 <script lang="ts">
-	import type { Metrics } from '$lib/types';
+	import type { MissionTotals } from '$lib/types';
 
 	interface Props {
-		metrics: Metrics | null;
-		found: boolean;
+		metrics: MissionTotals | null;
+		/** Packages the planner could not route to. */
+		unreachable: string[];
+		packageCount: number;
 	}
 
-	let { metrics, found }: Props = $props();
+	let { metrics, unreachable, packageCount }: Props = $props();
 
 	const dash = '—';
 </script>
 
 <section class="panel">
-	<h2>Performance Metrics</h2>
+	<h2>Shift Performance</h2>
 	<div class="tiles">
 		<div class="tile">
-			<span class="label">Path cost</span>
-			<span class="value">{metrics && found ? metrics.pathCost : dash}</span>
+			<span class="label">Total path cost</span>
+			<span class="value">{metrics ? metrics.pathCost : dash}</span>
+		</div>
+		<div class="tile">
+			<span class="label">Deliveries</span>
+			<span class="value">{metrics ? `${metrics.deliveries}/${packageCount}` : dash}</span>
 		</div>
 		<div class="tile">
 			<span class="label">Nodes expanded</span>
@@ -31,12 +37,18 @@
 			<span class="value">{metrics ? `${metrics.executionMs.toFixed(2)} ms` : dash}</span>
 		</div>
 		<div class="tile">
-			<span class="label">Path length</span>
-			<span class="value">{metrics && found ? `${metrics.pathLength} cells` : dash}</span>
+			<span class="label">Cells driven</span>
+			<span class="value">{metrics ? `${metrics.pathLength}` : dash}</span>
+		</div>
+		<div class="tile">
+			<span class="label">A* legs</span>
+			<span class="value">{metrics ? metrics.legs : dash}</span>
 		</div>
 	</div>
-	{#if metrics && !found}
-		<p class="fail">No path exists between start and goal with the current obstacles.</p>
+	{#if unreachable.length > 0}
+		<p class="fail">
+			Walled in by shelves, skipped: {unreachable.join(', ')}
+		</p>
 	{/if}
 </section>
 

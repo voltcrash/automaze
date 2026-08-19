@@ -13,10 +13,10 @@
 </script>
 
 <div class="controls">
-	<button class="primary" onclick={onStart} disabled={running}>▶ Start A*</button>
+	<button class="primary" onclick={onStart} disabled={running}>▶ Start Shift</button>
 	<button onclick={onReset}>↺ Reset</button>
-	<button onclick={onRandom} disabled={running}>⚄ Random Obstacles</button>
-	<button onclick={onClear} disabled={running}>✕ Clear Obstacles</button>
+	<button onclick={onRandom} disabled={running}>⚄ New Warehouse</button>
+	<button onclick={onClear} disabled={running}>✕ Clear Racks</button>
 
 	<label class="speed">
 		Speed

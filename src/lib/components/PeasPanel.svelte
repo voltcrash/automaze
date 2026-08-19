@@ -2,16 +2,19 @@
 	const peas = [
 		{
 			title: 'Performance Measure',
-			body: 'Shortest valid path to the goal, low total path cost, and as few explored nodes as possible.'
+			body: 'All packages delivered to the correct bay, lowest total path cost, fewest nodes expanded per leg.'
 		},
 		{
 			title: 'Environment',
-			body: 'A fully observable, static, discrete 2D grid of free cells and obstacles with a fixed start and goal.'
+			body: 'A fully observable, static, discrete grid warehouse: floor aisles, static shelf racks, packages and loading bays.'
 		},
-		{ title: 'Actuators', body: 'Move up, move down, move left, move right — each move costs 1.' },
+		{
+			title: 'Actuators',
+			body: 'Drive up, down, left or right (each move costs 1), pick up a package, drop it at a bay.'
+		},
 		{
 			title: 'Sensors',
-			body: 'Current position, the four neighbouring cells and their walkability, obstacle map, goal location.'
+			body: 'Own position and load state, the four neighbouring cells, the shelf map, package positions and bay locations.'
 		}
 	];
 </script>
