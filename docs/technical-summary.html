@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Technical Summary — A* Grid Navigation Agent</title>
+		<style>
+			@page {
+				size: A4;
+				margin: 12mm 13mm;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			body {
+				margin: 0;
+				font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+				font-size: 8.6pt;
+				line-height: 1.38;
+				color: #16202e;
+			}
+
+			/* ---------- Header ---------- */
+			.masthead {
+				border-bottom: 2.2pt solid #1a365d;
+				padding-bottom: 5pt;
+				margin-bottom: 7pt;
+			}
+
+			.eyebrow {
+				font-size: 7pt;
+				letter-spacing: 0.14em;
+				text-transform: uppercase;
+				color: #5a6b82;
+				margin: 0 0 2pt;
+			}
+
+			h1 {
+				font-size: 16pt;
+				margin: 0;
+				color: #1a365d;
+				letter-spacing: -0.01em;
+			}
+
+			.tagline {
+				margin: 2pt 0 0;
+				font-size: 8.4pt;
+				color: #46566c;
+			}
+
+			.info {
+				display: grid;
+				grid-template-columns: repeat(2, 1fr);
+				gap: 0 14pt;
+				margin-bottom: 9pt;
+			}
+
+			.info div {
+				display: flex;
+				gap: 5pt;
+				padding: 2.2pt 0;
+				border-bottom: 0.4pt solid #e3e8ef;
+			}
+
+			.info dt {
+				font-weight: 700;
+				color: #1a365d;
+				min-width: 78pt;
+				flex: none;
+			}
+
+			.info dd {
+				margin: 0;
+				color: #24344a;
+			}
+
+			/* ---------- Section headings ---------- */
+			h2 {
+				font-size: 9.4pt;
+				margin: 0 0 4pt;
+				color: #1a365d;
+				text-transform: uppercase;
+				letter-spacing: 0.07em;
+				border-left: 3pt solid #1a365d;
+				padding-left: 5pt;
+			}
+
+			section {
+				margin-bottom: 8pt;
+			}
+
+			/* ---------- Tables ---------- */
+			table {
+				width: 100%;
+				border-collapse: collapse;
+			}
+
+			th,
+			td {
+				border: 0.4pt solid #ccd5e0;
+				padding: 3.2pt 5pt;
+				text-align: left;
+				vertical-align: top;
+			}
+
+			thead th {
+				background: #eef2f7;
+				color: #1a365d;
+				font-size: 7.6pt;
+				letter-spacing: 0.05em;
+				text-transform: uppercase;
+			}
+
+			tbody th {
+				background: #f7f9fc;
+				color: #1a365d;
+				width: 96pt;
+				font-weight: 700;
+			}
+
+			.two-col {
+				display: grid;
+				grid-template-columns: 1fr 1fr;
+				gap: 8pt;
+			}
+
+			/* ---------- Formula ---------- */
+			.formula {
+				background: #f7f9fc;
+				border: 0.4pt solid #ccd5e0;
+				border-left: 3pt solid #2c5282;
+				padding: 5pt 8pt;
+				margin: 5pt 0;
+				text-align: center;
+				font-family: Georgia, 'Times New Roman', serif;
+				font-size: 11pt;
+				color: #16202e;
+			}
+
+			.formula .where {
+				display: block;
+				margin-top: 3pt;
+				font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+				font-size: 7.8pt;
+				color: #46566c;
+			}
+
+			code,
+			.mono {
+				font-family: 'SF Mono', Menlo, Consolas, monospace;
+				font-size: 8pt;
+			}
+
+			.note {
+				margin: 4pt 0 0;
+				font-size: 8pt;
+				color: #46566c;
+			}
+
+			.ph {
+				color: #8a5a00;
+				font-weight: 700;
+			}
+
+			footer {
+				margin-top: 7pt;
+				padding-top: 4pt;
+				border-top: 0.4pt solid #ccd5e0;
+				font-size: 7.2pt;
+				color: #6b7a90;
+				display: flex;
+				justify-content: space-between;
+			}
+		</style>
+	</head>
+	<body>
+		<header class="masthead">
+			<p class="eyebrow">AI Express Hackathon &middot; Technical Summary</p>
+			<h1>A* Grid Navigation Agent</h1>
+			<p class="tagline">
+				An autonomous problem-solving agent that computes the shortest obstacle-free path across a
+				2D grid using A* informed search — implemented in TypeScript and SvelteKit, executing
+				entirely in the browser with no backend, database or external API.
+			</p>
+		</header>
+
+		<dl class="info">
+			<div><dt>Course Code</dt><dd class="ph">[COURSE CODE]</dd></div>
+			<div><dt>Group ID</dt><dd class="ph">[GROUP ID]</dd></div>
+			<div>
+				<dt>Team Members</dt>
+				<dd class="ph">[MEMBER 1], [MEMBER 2], [MEMBER 3]</dd>
+			</div>
+			<div><dt>Selected Track</dt><dd><strong>A* Search / Problem-Solving Agent</strong></dd></div>
+			<div><dt>Project Name</dt><dd><strong>A* Grid Navigation Agent</strong></dd></div>
+			<div><dt>Tech Stack</dt><dd><strong>TypeScript</strong>, <strong>SvelteKit</strong> (client-side only)</dd></div>
+			<div><dt>Repository</dt><dd class="mono">https://github.com/voltcrash/automaze</dd></div>
+			<div><dt>Live Demo</dt><dd class="mono">https://voltcrash.com/automaze</dd></div>
+		</dl>
+
+		<section>
+			<h2>1 &nbsp;PEAS Framework</h2>
+			<table>
+				<thead>
+					<tr>
+						<th style="width: 96pt">Component</th>
+						<th>Specification</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr>
+						<th>Performance Measure</th>
+						<td>
+							Reach the goal successfully; minimise total path cost; find the shortest valid
+							route; reduce unnecessary node exploration.
+						</td>
+					</tr>
+					<tr>
+						<th>Environment</th>
+						<td>
+							A 2D grid comprising a start cell, a goal cell, free traversable cells, and
+							obstacle/wall cells. Fully observable, static, discrete and deterministic.
+						</td>
+					</tr>
+					<tr>
+						<th>Actuators</th>
+						<td>Move Up; Move Down; Move Left; Move Right.</td>
+					</tr>
+					<tr>
+						<th>Sensors</th>
+						<td>
+							Current agent position; valid neighbouring cells; obstacle locations; goal
+							location.
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</section>
+
+		<section>
+			<h2>2 &nbsp;Core Algorithmic Formulation</h2>
+			<table>
+				<tbody>
+					<tr>
+						<th>State Space</th>
+						<td>Each valid grid cell <code>(x, y)</code> represents one possible state.</td>
+					</tr>
+					<tr>
+						<th>Initial State</th>
+						<td>The agent's starting grid position.</td>
+					</tr>
+					<tr>
+						<th>Goal Test</th>
+						<td>The current position equals the goal position.</td>
+					</tr>
+					<tr>
+						<th>Actions</th>
+						<td>Move Up, Down, Left or Right into a valid, in-bounds, non-obstacle cell.</td>
+					</tr>
+					<tr>
+						<th>Path Cost</th>
+						<td>Each movement costs <strong>1</strong>; the cost of a path is its number of moves.</td>
+					</tr>
+				</tbody>
+			</table>
+
+			<div class="formula">
+				<strong>f(n) = g(n) + h(n)</strong>
+				<span class="where">
+					<strong>g(n)</strong> — actual cost from the start to node <em>n</em> &nbsp;&middot;&nbsp;
+					<strong>h(n)</strong> — estimated cost from <em>n</em> to the goal &nbsp;&middot;&nbsp;
+					<strong>f(n)</strong> — estimated total path cost through <em>n</em>
+				</span>
+			</div>
+
+			<div class="formula">
+				<strong>h(n) = |x<sub>goal</sub> &minus; x<sub>n</sub>| + |y<sub>goal</sub> &minus; y<sub>n</sub>|</strong>
+				<span class="where">Manhattan Distance</span>
+			</div>
+
+			<p class="note">
+				Manhattan distance is the appropriate heuristic because movement is restricted to four
+				directions, so no diagonal shortcut exists. It therefore never overestimates the true
+				remaining cost — it is <strong>admissible and consistent</strong>, which guarantees that
+				A* returns an <strong>optimal</strong> path. The agent expands the open-list node with the
+				lowest <code>f(n)</code>, breaking ties on the lower <code>h(n)</code>.
+			</p>
+		</section>
+
+		<section>
+			<h2>3 &nbsp;Complexity &amp; Observed Performance</h2>
+			<div class="two-col">
+				<table>
+					<thead>
+						<tr>
+							<th>Theoretical Complexity</th>
+							<th style="width: 62pt">Bound</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr>
+							<th>Time (worst case)</th>
+							<td><strong>O(b<sup>d</sup>)</strong>, b &le; 4</td>
+						</tr>
+						<tr>
+							<th>Time (finite grid)</th>
+							<td><strong>O(N log N)</strong> with a heap</td>
+						</tr>
+						<tr>
+							<th>Space</th>
+							<td><strong>O(N)</strong> — open + closed lists</td>
+						</tr>
+					</tbody>
+				</table>
+
+				<table>
+					<thead>
+						<tr>
+							<th>Observed Metric</th>
+							<th style="width: 62pt">Result</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr><th>Final Path Cost</th><td class="ph">[VALUE]</td></tr>
+						<tr><th>Final Path Length</th><td class="ph">[VALUE]</td></tr>
+						<tr><th>Nodes Expanded</th><td class="ph">[VALUE]</td></tr>
+						<tr><th>Visited Nodes</th><td class="ph">[VALUE]</td></tr>
+						<tr><th>Execution Time</th><td class="ph">[VALUE] ms</td></tr>
+					</tbody>
+				</table>
+			</div>
+
+			<p class="note">
+				Here <em>b</em> is the branching factor (at most 4), <em>d</em> the depth of the optimal
+				solution, and <em>N</em> the number of traversable cells. On a finite grid each cell is
+				expanded at most once, so the practical cost is bounded by the grid size rather than by
+				b<sup>d</sup>. Actual performance depends on <strong>the number of states explored</strong>
+				and <strong>the quality of the heuristic</strong>: a sharper admissible <em>h(n)</em>
+				expands fewer nodes for the same optimal path. The application measures the metrics above
+				at runtime and reports them after each search.
+			</p>
+		</section>
+
+		<footer>
+			<span>A* Grid Navigation Agent — Technical Summary</span>
+			<span>TypeScript &middot; SvelteKit &middot; Browser-only execution</span>
+		</footer>
+	</body>
+</html>
