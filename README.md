@@ -57,12 +57,12 @@ not a scripted approximation.
 
 ## What's on screen
 
-| Section | What it shows |
-| --- | --- |
-| Warehouse Floor | Shelf racks, loading bays, packages, the forklift (ringed amber while laden), the frontier, expanded cells and the optimal route for the current leg |
+| Section           | What it shows                                                                                                                                                                                  |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Warehouse Floor   | Shelf racks, loading bays, packages, the forklift (ringed amber while laden), the frontier, expanded cells and the optimal route for the current leg                                           |
 | Live Decision Log | The manifest, each leg as it starts, every node expanded with `g(n)`/`h(n)`/`f(n)`, every node pushed to the open list, every rejected neighbour with its reason, and each pickup and delivery |
-| Shift Performance | Total path cost, deliveries, nodes expanded, nodes visited, execution time, cells driven, A\* legs |
-| PEAS Framework | Performance measure, environment, actuators, sensors |
+| Shift Performance | Total path cost, deliveries, nodes expanded, nodes visited, execution time, cells driven, A\* legs                                                                                             |
+| PEAS Framework    | Performance measure, environment, actuators, sensors                                                                                                                                           |
 
 Controls: **Start Shift**, **Reset** (new manifest, same racks), **New Warehouse**,
 **Clear Racks**, plus a speed slider. Click or drag on the floor to add or remove shelf racks
