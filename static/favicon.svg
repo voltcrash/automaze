@@ -1,20 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="A* grid navigation agent">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Warehouse logistics agent">
 	<!-- Board -->
 	<rect width="32" height="32" rx="7" fill="#0b0f17" />
 	<rect x="0.5" y="0.5" width="31" height="31" rx="6.5" fill="none" stroke="#243049" />
 
-	<!-- Obstacle -->
+	<!-- Shelf rack -->
 	<rect x="3" y="3" width="8" height="8" rx="2" fill="#2b3550" />
 
-	<!-- Free cells -->
+	<!-- Open floor -->
 	<rect x="21" y="12" width="8" height="8" rx="2" fill="#1b2438" />
 	<rect x="12" y="21" width="8" height="8" rx="2" fill="#1b2438" />
 	<rect x="21" y="21" width="8" height="8" rx="2" fill="#1b2438" />
 
-	<!-- Solved path: start (green) → route (amber) → goal (red) -->
+	<!-- Delivery run: forklift (green) → route (amber) → loading bay (cyan) -->
 	<rect x="3" y="21" width="8" height="8" rx="2" fill="#22c55e" />
 	<rect x="3" y="12" width="8" height="8" rx="2" fill="#f5b13d" />
 	<rect x="12" y="12" width="8" height="8" rx="2" fill="#f5b13d" />
 	<rect x="12" y="3" width="8" height="8" rx="2" fill="#f5b13d" />
-	<rect x="21" y="3" width="8" height="8" rx="2" fill="#f43f5e" />
+	<rect x="21" y="3" width="8" height="8" rx="2" fill="#38bdf8" />
 </svg>
