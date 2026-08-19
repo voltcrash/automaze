@@ -1,42 +1,71 @@
-# sv
+# A* Grid Navigation Agent
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+An autonomous pathfinding agent that runs **entirely in the browser** — no backend, no
+database, no API keys. Built with **SvelteKit + TypeScript**.
 
-## Creating a project
+The agent searches a 25×16 grid for the shortest obstacle-free path from a start cell to a
+goal cell using **A\*** search, while streaming its reasoning to a live decision log.
 
-If you're seeing this, you've probably already done this step. Congrats!
+## Run it
 
-```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv@0.17.0 create --template minimal --types ts --install npm .
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
-
-```sh
+```bash
+npm install
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+Then open http://localhost:5173.
 
-To create a production version of your app:
+Other commands: `npm run build`, `npm run preview`, `npm run check`.
 
-```sh
-npm run build
+## What's on screen
+
+| Section | What it shows |
+| --- | --- |
+| Grid Environment | Start, goal, obstacles, frontier (open list), visited cells, final path and the moving agent |
+| Live Decision Log | Every node expanded with `g(n)`, `h(n)`, `f(n)`, every node pushed to the open list, and every rejected neighbour with its reason |
+| Performance Metrics | Path cost, nodes expanded, nodes visited, execution time, final path length |
+| PEAS Framework | Performance measure, environment, actuators, sensors |
+
+Controls: **Start A\***, **Reset**, **Random Obstacles**, **Clear Obstacles**, plus a speed
+slider. Click or drag on the grid to draw or erase obstacles before starting.
+
+## The algorithm
+
+`src/lib/algorithms/astar.ts` is pure TypeScript with no UI dependencies, so it can be read
+and explained on its own.
+
+- `f(n) = g(n) + h(n)`
+- `g(n)` — cost from the start to the current node (1 per move)
+- `h(n) = |x_goal - x_current| + |y_goal - y_current|` — Manhattan distance, admissible on a
+  4-connected grid, so A\* returns an optimal path
+- Moves: up, down, left, right, each costing 1
+- Ties on `f` are broken by the lower `h`, which pushes the search towards the goal
+
+The search runs to completion synchronously and records every decision as a `SearchEvent`.
+The UI then replays that trace frame by frame — **the animation is the real execution**,
+not a scripted approximation.
+
+## Structure
+
+```text
+src/
+  lib/
+    algorithms/astar.ts   # A* search, UI-free
+    grid.ts               # grid size, defaults, random obstacle generation
+    types.ts              # shared types
+    components/
+      Grid.svelte         # grid rendering + obstacle painting
+      Controls.svelte     # buttons and speed slider
+      DecisionLog.svelte  # live reasoning feed
+      Metrics.svelte      # performance tiles
+      PeasPanel.svelte    # expandable PEAS section
+      Legend.svelte       # colour key
+  routes/+page.svelte     # orchestrates the run and the animation
 ```
 
-You can preview the production build with `npm run preview`.
+## PEAS
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+- **Performance measure** — shortest valid path, low path cost, few explored nodes
+- **Environment** — a fully observable, static, discrete 2D grid of free cells and obstacles
+- **Actuators** — move up, down, left, right
+- **Sensors** — current position, neighbouring cells, obstacle map, goal location
